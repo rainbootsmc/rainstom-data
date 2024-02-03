@@ -5,12 +5,15 @@ plugins {
     alias(libs.plugins.vanilla.gradle) apply false
 
     `maven-publish`
-    signing
-    alias(libs.plugins.nexuspublish)
 }
 
-group = "net.minestom"
-version = System.getenv("TAG_VERSION") ?: "${libs.versions.minecraft.get()}-dev"
+val publishPath = System.getenv()["PUBLISH_PATH"]
+val branch = System.getenv()["GITHUB_REF_NAME"] ?: "unknown"
+val buildNumber = System.getenv()["BUILD_NUMBER"] ?: "local-SNAPSHOT"
+val outputDirectory = (findProperty("output") ?: rootDir.resolve("MinestomData").absolutePath) as String
+
+group = "net.rainbootsmc"
+version = "$branch+build.$buildNumber"
 description = "Generator for Minecraft game data values"
 
 java {
@@ -38,8 +41,8 @@ tasks.register("generateData") {
     val eulaTxt = File("${rootProject.projectDir}/eula.txt")
     logger.warn("The file must be located at '${eulaTxt.absolutePath}'.")
     if ((eulaTxt.exists() && eulaTxt.readText(Charsets.UTF_8).equals("eula=true", true))
-            || project.properties["eula"].toString().toBoolean()
-            || System.getenv("EULA")?.toBoolean() == true
+        || project.properties["eula"].toString().toBoolean()
+        || System.getenv("EULA")?.toBoolean() == true
     ) {
         logger.warn("")
         logger.warn("The EULA has been accepted and signed.")
@@ -59,77 +62,32 @@ tasks.register("generateData") {
     })
 }
 
+tasks.register<Jar>("dataJar") {
+    dependsOn("generateData")
+
+    archiveBaseName.set("rainstom-data")
+    archiveVersion.set(libs.versions.minecraft)
+    destinationDirectory.set(layout.buildDirectory.dir("dist"))
+    from(outputDirectory)
+}
+
 tasks.processResources.get().dependsOn("generateData")
 
-nexusPublishing {
-    this.packageGroup.set("net.minestom")
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "net.rainbootsmc"
+            artifactId = "rainstom-data"
+            version = project.version.toString()
 
-    repositories.sonatype {
-        nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
-        snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
-
-        if (System.getenv("SONATYPE_USERNAME") != null) {
-            username.set(System.getenv("SONATYPE_USERNAME"))
-            password.set(System.getenv("SONATYPE_PASSWORD"))
+            artifact(tasks.getByName("dataJar"))
         }
     }
-}
-
-publishing.publications.create<MavenPublication>("maven") {
-    groupId = "net.minestom"
-    artifactId = "data"
-    version = project.version.toString()
-
-    from(project.components["java"])
-
-    pom {
-        name.set("data")
-        description.set("Minecraft game data values")
-        url.set("https://github.com/minestom/MinestomDataGenerator")
-
-        licenses {
-            license {
-                name.set("Apache 2.0")
-                url.set("https://github.com/minestom/MinestomDataGenerator/blob/main/LICENSE")
+    if (publishPath != null) {
+        repositories {
+            maven {
+                url = uri(publishPath)
             }
-        }
-
-        developers {
-            developer {
-                id.set("mworzala")
-                name.set("Matt Worzala")
-                email.set("matt@hollowcube.dev")
-            }
-            developer {
-                id.set("TheMode")
-            }
-        }
-
-        issueManagement {
-            system.set("GitHub")
-            url.set("https://github.com/minestom/MinestomDataGenerator/issues")
-        }
-
-        scm {
-            connection.set("scm:git:git://github.com/minestom/MinestomDataGenerator.git")
-            developerConnection.set("scm:git:git@github.com:minestom/MinestomDataGenerator.git")
-            url.set("https://github.com/minestom/MinestomDataGenerator")
-            tag.set("HEAD")
-        }
-
-        ciManagement {
-            system.set("Github Actions")
-            url.set("https://github.com/minestom/MinestomDataGenerator/actions")
         }
     }
-}
-
-signing {
-    isRequired = System.getenv("CI") != null
-
-    val privateKey = System.getenv("GPG_PRIVATE_KEY")
-    val keyPassphrase = System.getenv()["GPG_PASSPHRASE"]
-    useInMemoryPgpKeys(privateKey, keyPassphrase)
-
-    sign(publishing.publications)
 }

@@ -37,6 +37,7 @@ public enum DataGenType {
     ITEM_TAGS("tags/item_tags", new ItemTagGenerator()),
 
     DAMAGE_TYPES("damage_types", new GenericResourceGenerator("damage_type")),
+    SOUND_TYPES("sound_types", new SoundTypeGenerator()), // SoundTypeGeneratorを追加
 
     TRIM_MATERIALS("trim_materials", new GenericResourceGenerator("trim_material")),
     TRIM_PATTERNS("trim_patterns", new GenericResourceGenerator("trim_pattern")),

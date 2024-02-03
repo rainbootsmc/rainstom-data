@@ -7,10 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.EmptyBlockGetter;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.FallingBlock;
-import net.minecraft.world.level.block.FireBlock;
+import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -20,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -138,6 +136,7 @@ public final class BlockGenerator extends DataGenerator {
         appendState(blockJson, state, "replaceable", blockState.canBeReplaced(), false, boolean.class);
         appendState(blockJson, state, "solid", blockState.isSolid(), boolean.class);
         appendState(blockJson, state, "solidBlocking", blockState.blocksMotion(), boolean.class);
+        appendState(blockJson, state, "soundType", getSoundTypeName(blockState.getSoundType()), String.class);
         // Shapes (Hit-boxes)
         appendState(blockJson, state, "shape", blockState.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs().toString(), String.class);
         appendState(blockJson, state, "collisionShape", blockState.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs().toString(), String.class);
@@ -180,6 +179,20 @@ public final class BlockGenerator extends DataGenerator {
         } catch (InvocationTargetException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static @NotNull String getSoundTypeName(@NotNull SoundType soundType) {
+        return Arrays.stream(SoundType.class.getDeclaredFields())
+                .filter(field -> {
+                    try {
+                        return field.get(null) == soundType;
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .map(Field::getName)
+                .findFirst()
+                .orElseThrow();
     }
 
     static {
