@@ -7,10 +7,8 @@ plugins {
     `maven-publish`
 }
 
-val publishPath = System.getenv()["PUBLISH_PATH"]
 val branch = System.getenv()["GITHUB_REF_NAME"] ?: "unknown"
 val buildNumber = System.getenv()["BUILD_NUMBER"] ?: "local-SNAPSHOT"
-val outputDirectory = (findProperty("output") ?: rootDir.resolve("MinestomData").absolutePath) as String
 
 group = "net.rainbootsmc"
 version = "$branch+build.$buildNumber"
@@ -68,12 +66,16 @@ tasks.register<Jar>("dataJar") {
     archiveBaseName.set("rainstom-data")
     archiveVersion.set(libs.versions.minecraft)
     destinationDirectory.set(layout.buildDirectory.dir("dist"))
-    from(outputDirectory)
+    from(rootDir.resolve("src/main/resources").absolutePath)
 }
 
 tasks.processResources.get().dependsOn("generateData")
 
 publishing {
+    val uri = System.getenv()["S3_URI"]
+    val accessKey = System.getenv()["S3_ACCESS_KEY"]
+    val secretKey = System.getenv()["S3_SECRET_KEY"]
+
     publications {
         create<MavenPublication>("maven") {
             groupId = "net.rainbootsmc"
@@ -83,10 +85,14 @@ publishing {
             artifact(tasks.getByName("dataJar"))
         }
     }
-    if (publishPath != null) {
-        repositories {
-            maven {
-                url = uri(publishPath)
+    repositories {
+        maven {
+            if (uri != null) {
+                url = uri(uri)
+            }
+            credentials(AwsCredentials::class) {
+                this.accessKey = accessKey
+                this.secretKey = secretKey
             }
         }
     }
